@@ -1,22 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Reports;
+using BenchmarkDotNet.Running;
 
 namespace DefaultStructEqualityProblem
 {
   public class Program
   {
-    private static readonly Dictionary<SummaryKeyTypeFirst, SummaryKeyTypeFirst> SummaryKeyTypeFirstDictionary = new();
-    private static readonly Dictionary<SummaryKeyGroupFirst, SummaryKeyGroupFirst> SummaryKeyGroupFirstDictionary = new();
-    private static readonly Dictionary<SummaryKeyEquatable, SummaryKeyEquatable> SummaryKeyEquatableDictionary = new();
-
-    private static readonly int _typeNeeded = 2;
-    private static readonly int _marketNeeded = 20;
-    private static readonly int _userGroupNeeded = 500;
-
     static void Main(string[] args)
+    {
+      Summary summary = BenchmarkRunner.Run<Analyzer>();
+      Console.Read();
+      new Analyzer().Analyze();
+    }
+  }
+
+  [MemoryDiagnoser]
+  public class Analyzer
+  {
+    public readonly Dictionary<SummaryKeyTypeFirst, SummaryKeyTypeFirst> SummaryKeyTypeFirstDictionary = new();
+    public readonly Dictionary<SummaryKeyGroupFirst, SummaryKeyGroupFirst> SummaryKeyGroupFirstDictionary = new();
+    public readonly Dictionary<SummaryKeyEquatable, SummaryKeyEquatable> SummaryKeyEquatableDictionary = new();
+
+    [Params(2)] public int TypeNeeded { get; set; }
+    [Params(20)] public int MarketNeeded { get; set; }
+    [Params(100)] public int UserGroupNeeded { get; set; }
+
+    public void Analyze()
     {
       Console.WriteLine("==============================INSERTION===================================");
 
@@ -55,15 +67,20 @@ namespace DefaultStructEqualityProblem
       Console.WriteLine("================================HashCode=================================");
 
       Console.WriteLine();
-      Console.WriteLine(new SummaryKeyTypeFirst { PartitionType = "0", MarketType = "0", UserGroup = "0" }.GetHashCode());
-      Console.WriteLine(new SummaryKeyTypeFirst { PartitionType = "0", MarketType = "0", UserGroup = "123" }.GetHashCode());
-      Console.WriteLine(new SummaryKeyTypeFirst { PartitionType = "0", MarketType = "19", UserGroup = "223" }.GetHashCode());
+      Console.WriteLine(new SummaryKeyTypeFirst {PartitionType = "0", MarketType = "0", UserGroup = "0"}.GetHashCode());
+      Console.WriteLine(
+        new SummaryKeyTypeFirst {PartitionType = "0", MarketType = "0", UserGroup = "123"}.GetHashCode());
+      Console.WriteLine(
+        new SummaryKeyTypeFirst {PartitionType = "0", MarketType = "19", UserGroup = "223"}.GetHashCode());
       Console.WriteLine("=================================================================");
 
       Console.WriteLine();
-      Console.WriteLine(new SummaryKeyGroupFirst { PartitionType = "0", MarketType = "0", UserGroup = "0" }.GetHashCode());
-      Console.WriteLine(new SummaryKeyGroupFirst { PartitionType = "0", MarketType = "0", UserGroup = "123" }.GetHashCode());
-      Console.WriteLine(new SummaryKeyGroupFirst { PartitionType = "0", MarketType = "19", UserGroup = "123" }.GetHashCode());
+      Console.WriteLine(new SummaryKeyGroupFirst
+        {PartitionType = "0", MarketType = "0", UserGroup = "0"}.GetHashCode());
+      Console.WriteLine(
+        new SummaryKeyGroupFirst {PartitionType = "0", MarketType = "0", UserGroup = "123"}.GetHashCode());
+      Console.WriteLine(
+        new SummaryKeyGroupFirst {PartitionType = "0", MarketType = "19", UserGroup = "123"}.GetHashCode());
       Console.WriteLine("=================================================================");
 
       Console.WriteLine();
@@ -75,12 +92,20 @@ namespace DefaultStructEqualityProblem
       Console.Read();
     }
 
-    private static void ValidateSummaryKeyEquatableLookUp()
+    [GlobalSetup]
+    public void Init()
     {
-      var summaryKeyEquatableStopwatch = Stopwatch.StartNew();
-      LoopAndProcess(LookUp);
-      summaryKeyEquatableStopwatch.Stop();
-      PrintToConsole(summaryKeyEquatableStopwatch);
+      ValidateSummaryKeyTypeFirst();
+
+      ValidateSummaryKeyGroupFirst();
+
+      ValidateSummaryKeyEquatable();
+    }
+
+    [Benchmark]
+    public bool ValidateSummaryKeyEquatableLookUp()
+    {
+      return LoopAndProcess(LookUp);
 
       void LookUp(int partitionType, int marketType, int userGroup)
       {
@@ -90,109 +115,96 @@ namespace DefaultStructEqualityProblem
       }
     }
 
-    private static void ValidateSummaryKeyTypeFirstLookUp()
+    [Benchmark]
+    public bool ValidateSummaryKeyTypeFirstLookUp()
     {
-      var summaryKeyTypeFirstStopwatch = Stopwatch.StartNew();
-      LoopAndProcess(LookUp);
-      summaryKeyTypeFirstStopwatch.Stop();
-      PrintToConsole(summaryKeyTypeFirstStopwatch);
+      return LoopAndProcess(LookUp);
 
       void LookUp(int partitionType, int marketType, int userGroup)
       {
-        var key = new SummaryKeyTypeFirst { PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString() };
+        var key = new SummaryKeyTypeFirst
+        {
+          PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString()
+        };
 
         var summaryKeyTypeFirstData = SummaryKeyTypeFirstDictionary.ContainsKey(key);
       }
     }
 
-    private static void ValidateSummaryKeyGroupFirstLookUp()
+    [Benchmark]
+    public bool ValidateSummaryKeyGroupFirstLookUp()
     {
-      var summaryKeyGroupFirstStopwatch = Stopwatch.StartNew();
-      LoopAndProcess(LookUp);
-      summaryKeyGroupFirstStopwatch.Stop();
-      PrintToConsole(summaryKeyGroupFirstStopwatch);
+      return LoopAndProcess(LookUp);
 
       void LookUp(int partitionType, int marketType, int userGroup)
       {
-        var key = new SummaryKeyGroupFirst { PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString() };
+        var key = new SummaryKeyGroupFirst
+        {
+          PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString()
+        };
 
         var summaryKeyGroupFirstData = SummaryKeyGroupFirstDictionary.ContainsKey(key);
       }
     }
-
-    private static void ValidateSummaryKeyEquatable()
+    
+    public bool ValidateSummaryKeyEquatable()
     {
-      var summaryKeyEquatableStopwatch = Stopwatch.StartNew();
-      LoopAndProcess(AddToDictionary);
-      summaryKeyEquatableStopwatch.Stop();
-      PrintToConsole(SummaryKeyEquatableDictionary.Count, summaryKeyEquatableStopwatch);
+      return LoopAndProcess(AddToDictionary);
 
       void AddToDictionary(int partitionType, int marketType, int userGroup)
       {
         var key = new SummaryKeyEquatable(partitionType.ToString(), marketType.ToString(), userGroup.ToString());
-        
+
         SummaryKeyEquatableDictionary.Add(key, key);
       }
     }
-
-    private static void ValidateSummaryKeyGroupFirst()
+    
+    public bool ValidateSummaryKeyGroupFirst()
     {
-      var summaryKeyGroupFirstStopwatch = Stopwatch.StartNew();
-      LoopAndProcess(AddToDictionary);
-      summaryKeyGroupFirstStopwatch.Stop();
-      PrintToConsole(SummaryKeyGroupFirstDictionary.Count, summaryKeyGroupFirstStopwatch);
+      return LoopAndProcess(AddToDictionary);
 
       void AddToDictionary(int partitionType, int marketType, int userGroup)
       {
-        var key = new SummaryKeyGroupFirst { PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString() };
+        var key = new SummaryKeyGroupFirst
+        {
+          PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString()
+        };
 
         SummaryKeyGroupFirstDictionary.Add(key, key);
       }
     }
-
-    private static void ValidateSummaryKeyTypeFirst()
+    
+    public bool ValidateSummaryKeyTypeFirst()
     {
-      var summaryKeyTypeFirstStopWatch = Stopwatch.StartNew();
-      LoopAndProcess(AddToDictionary);
-      summaryKeyTypeFirstStopWatch.Stop();
-      PrintToConsole(SummaryKeyTypeFirstDictionary.Count, summaryKeyTypeFirstStopWatch);
+      return LoopAndProcess(AddToDictionary);
 
       void AddToDictionary(int partitionType, int marketType, int userGroup)
       {
-        var key = new SummaryKeyTypeFirst { PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString() };
+        var key = new SummaryKeyTypeFirst
+        {
+          PartitionType = partitionType.ToString(), MarketType = marketType.ToString(), UserGroup = userGroup.ToString()
+        };
         SummaryKeyTypeFirstDictionary.Add(key, key);
       }
     }
-
-    private static void PrintToConsole(int count, Stopwatch summaryKeyTypeFirstStopWatch, [CallerMemberName] string callerName = "")
-    {
-      Console.WriteLine();
-      Console.WriteLine($"{callerName} method took {summaryKeyTypeFirstStopWatch.ElapsedMilliseconds} milliseconds to insert {count} records");
-      Console.WriteLine("=================================================================");
-    }
-
-    private static void PrintToConsole(int count, string action)
+    
+    private void PrintToConsole(int count, string action)
     {
       Console.WriteLine();
       Console.WriteLine($"{action} has {count} records");
       Console.WriteLine("=================================================================");
     }
 
-    private static void PrintToConsole(Stopwatch summaryKeyTypeFirstStopWatch, [CallerMemberName] string callerName = "")
+    private bool LoopAndProcess(Action<int, int, int> processFunc)
     {
-      Console.WriteLine();
-      Console.WriteLine($"{callerName} method took {summaryKeyTypeFirstStopWatch.ElapsedMilliseconds} milliseconds to lookup");
-      Console.WriteLine("=================================================================");
-    }
-
-    private static void LoopAndProcess(Action<int, int, int> processFunc)
-    {
-      for (var partitionType = 0; partitionType < _typeNeeded; partitionType++)
-      for (var marketType = 0; marketType < _marketNeeded; marketType++)
-      for (var userGroup = 0; userGroup < _userGroupNeeded; userGroup++)
+      for (var partitionType = 0; partitionType < TypeNeeded; partitionType++)
+      for (var marketType = 0; marketType < MarketNeeded; marketType++)
+      for (var userGroup = 0; userGroup < UserGroupNeeded; userGroup++)
       {
         processFunc(partitionType, marketType, userGroup);
       }
+
+      return true;
     }
   }
 }
